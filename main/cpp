@@ -1,0 +1,23 @@
+#include <SFML/Graphics.hpp>
+#include <iostream>
+
+int main() {
+    std::cout << "Tetris is starting...\n";
+
+    sf::RenderWindow window(sf::VideoMode(800, 600), "Tetris");
+
+    while (window.isOpen()) {
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) {
+                std::cout << "Closing window...\n";
+                window.close();
+            }
+        }
+
+        window.clear();
+        window.display();
+    }
+
+    return 0;
+}
