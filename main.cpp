@@ -5,16 +5,16 @@
 #include <string>
 #include <iostream>
 
-const int KOLONKY = 10; // Ширина поля
-const int RYADKY = 20; // Висота поля
-const int ROZMIR_KLITYNKY = 30; // Розмір кубика
+const int COLS = 10; // Ширина поля
+const int ROWS = 20; // Висота поля
+const int CELL_SIZE = 30; // Розмір кубика
 
-struct Tochka {
+struct Point {
     int x, y;
 };
 
 // Шаблони фігур
-const Tochka FIGURY[7][4] = {
+const Point SHAPES[7][4] = {
     { {0, 1}, {1, 1}, {2, 1}, {3, 1} },
     { {1, 0}, {2, 0}, {1, 1}, {2, 1} },
     { {1, 0}, {0, 1}, {1, 1}, {2, 1} },
@@ -25,7 +25,7 @@ const Tochka FIGURY[7][4] = {
 };
 
 // Кольори фігур
-const sf::Color KOLIORY[8] = {
+const sf::Color COLORS[8] = {
     sf::Color(35, 35, 35),
     sf::Color(0, 188, 212),
     sf::Color(255, 235, 59),
@@ -36,595 +36,595 @@ const sf::Color KOLIORY[8] = {
     sf::Color(255, 152, 0)
 };
 
-int sitka[RYADKY][KOLONKY] = {0}; // Поле гри
-Tochka potochna[4]; // Активна фігура
-Tochka nastupna[4]; // Наступна фігура
-int typPotochnoi = 0; // Тип поточної
-int typNastupnoi = 0; // Тип наступної
-int rahunok = 0; // Очки
-int linii = 0; // Лінії
-int riven = 0; // Рівень
-float taimer = 0.0f; // Таймер
-float zatrymka = 1.0f; // Затримка
+int grid[ROWS][COLS] = {0}; // Поле гри
+Point current[4]; // Активна фігура
+Point next[4]; // Наступна фігура
+int currentType = 0; // Тип поточної
+int nextType = 0; // Тип наступної
+int score = 0; // Очки
+int lines = 0; // Лінії
+int level = 0; // Рівень
+float timer = 0.0f; // Таймер
+float delay = 1.0f; // Затримка
 
-bool pokazatyMenu = true; // Меню
-bool naPauzi = false; // Пауза
-bool kinetsHry = false; // Програш
-int vybranyjPunkt = 0; // Вибір меню
+bool showMenu = true; // Меню
+bool isPaused = false; // Пауза
+bool isGameOver = false; // Програш
+int selectedMenu = 0; // Вибір меню
 
 // Звуки гри
-sf::Sound zvukRuhu;
-sf::Sound zvukPovorotu;
-sf::Sound zvukOchyshchennya;
-sf::Sound zvukRivnya;
-sf::Sound zvukProhrashu;
+sf::Sound sndMove;
+sf::Sound sndRot;
+sf::Sound sndClear;
+sf::Sound sndLevel;
+sf::Sound sndOver;
 
 // Музика гри
-sf::Music muzykaMenu;
-sf::Music muzykaHry;
-bool yeMuzykaMenu = false;
-bool yeMuzykaHry = false;
-std::string spisokTrekiv[3] = {
+sf::Music menuMusic;
+sf::Music music;
+bool hasMenuMusic = false;
+bool hasMusic = false;
+std::string playlist[3] = {
     "sounds/theme1.mp3",
     "sounds/theme2.mp3",
     "sounds/theme3.mp3"
 };
-int potochnyjTrek = 0;
+int currentTrack = 0;
 
 // Вивід логів
-void zapysaty_loh(const std::string& povidomlennya) {
-    std::cout << "[LOG] " << povidomlennya << std::endl;
+void log(const std::string& msg) {
+    std::cout << "[LOG] " << msg << std::endl;
 }
 
 // Перевірка колізії
-bool perevirka_zitknen(Tochka detal[4]) {
+bool check_collision(Point piece[4]) {
     for (int i = 0; i < 4; i++) {
-        if (detal[i].x < 0 || detal[i].x >= KOLONKY || detal[i].y >= RYADKY) return true;
-        if (detal[i].y >= 0 && sitka[detal[i].y][detal[i].x] != 0) return true;
+        if (piece[i].x < 0 || piece[i].x >= COLS || piece[i].y >= ROWS) return true;
+        if (piece[i].y >= 0 && grid[piece[i].y][piece[i].x] != 0) return true;
     }
     return false;
 }
 
 // Нова фігура
-void stvoryty_figuru() {
-    typPotochnoi = typNastupnoi;
-    typNastupnoi = rand() % 7;
+void spawn() {
+    currentType = nextType;
+    nextType = rand() % 7;
     for (int i = 0; i < 4; i++) {
-        potochna[i].x = FIGURY[typPotochnoi][i].x + 3;
-        potochna[i].y = FIGURY[typPotochnoi][i].y;
-        nastupna[i].x = FIGURY[typNastupnoi][i].x;
-        nastupna[i].y = FIGURY[typNastupnoi][i].y;
+        current[i].x = SHAPES[currentType][i].x + 3;
+        current[i].y = SHAPES[currentType][i].y;
+        next[i].x = SHAPES[nextType][i].x;
+        next[i].y = SHAPES[nextType][i].y;
     }
-    if (perevirka_zitknen(potochna)) {
-        kinetsHry = true; // Програш
-        zapysaty_loh("Game over. Final score: " + std::to_string(rahunok) + ", Level: " + std::to_string(riven) + ", Lines: " + std::to_string(linii));
-        if (yeMuzykaHry) muzykaHry.stop();
-        zvukProhrashu.play();
+    if (check_collision(current)) {
+        isGameOver = true; // Програш
+        log("Game over. Final score: " + std::to_string(score) + ", Level: " + std::to_string(level) + ", Lines: " + std::to_string(lines));
+        if (hasMusic) music.stop();
+        sndOver.play();
     }
 }
 
 // Старт спочатку
-void ochystyty_gru() {
-    for (int y = 0; y < RYADKY; y++) {
-        for (int x = 0; x < KOLONKY; x++) {
-            sitka[y][x] = 0;
+void reset() {
+    for (int y = 0; y < ROWS; y++) {
+        for (int x = 0; x < COLS; x++) {
+            grid[y][x] = 0;
         }
     }
-    rahunok = 0;
-    linii = 0;
-    riven = 0;
-    zatrymka = 1.0f;
-    taimer = 0.0f;
-    kinetsHry = false;
-    pokazatyMenu = false;
-    naPauzi = false;
+    score = 0;
+    lines = 0;
+    level = 0;
+    delay = 1.0f;
+    timer = 0.0f;
+    isGameOver = false;
+    showMenu = false;
+    isPaused = false;
 
-    zapysaty_loh("Game started");
+    log("Game started");
 
-    if (yeMuzykaMenu) muzykaMenu.stop();
+    if (hasMenuMusic) menuMusic.stop();
 
-    potochnyjTrek = rand() % 3;
-    yeMuzykaHry = muzykaHry.openFromFile(spisokTrekiv[potochnyjTrek]);
-    if (yeMuzykaHry) {
-        muzykaHry.setLoop(false);
-        muzykaHry.setVolume(20.0f);
-        muzykaHry.play();
+    currentTrack = rand() % 3;
+    hasMusic = music.openFromFile(playlist[currentTrack]);
+    if (hasMusic) {
+        music.setLoop(false);
+        music.setVolume(20.0f);
+        music.play();
     }
 
-    stvoryty_figuru();
+    spawn();
 }
 
 int main() {
     srand(time(0));
 
-    sf::RenderWindow vikno(sf::VideoMode(720, 660), "Tetris", sf::Style::Titlebar | sf::Style::Close);
-    vikno.setFramerateLimit(60); // Обмеження FPS
+    sf::RenderWindow window(sf::VideoMode(720, 660), "Tetris", sf::Style::Titlebar | sf::Style::Close);
+    window.setFramerateLimit(60); // Обмеження FPS
 
-    sf::Font shrift; // Шрифт
-    shrift.loadFromFile("C:\\Windows\\Fonts\\arial.ttf");
+    sf::Font font; // Шрифт
+    font.loadFromFile("C:\\Windows\\Fonts\\arial.ttf");
 
     // Завантаження звуків
-    sf::SoundBuffer bufRuhu, bufPovorotu, bufOchyshchennya, bufRivnya, bufProhrashu;
-    bufRuhu.loadFromFile("sounds/move.mp3");
-    bufPovorotu.loadFromFile("sounds/rotate.mp3");
-    bufOchyshchennya.loadFromFile("sounds/clear.mp3");
-    bufRivnya.loadFromFile("sounds/levelup.mp3");
-    bufProhrashu.loadFromFile("sounds/gameover.mp3");
+    sf::SoundBuffer bufMove, bufRot, bufClear, bufLevel, bufOver;
+    bufMove.loadFromFile("sounds/move.mp3");
+    bufRot.loadFromFile("sounds/rotate.mp3");
+    bufClear.loadFromFile("sounds/clear.mp3");
+    bufLevel.loadFromFile("sounds/levelup.mp3");
+    bufOver.loadFromFile("sounds/gameover.mp3");
 
-    zvukRuhu.setBuffer(bufRuhu);
-    zvukPovorotu.setBuffer(bufPovorotu);
-    zvukOchyshchennya.setBuffer(bufOchyshchennya);
-    zvukRivnya.setBuffer(bufRivnya);
-    zvukProhrashu.setBuffer(bufProhrashu);
+    sndMove.setBuffer(bufMove);
+    sndRot.setBuffer(bufRot);
+    sndClear.setBuffer(bufClear);
+    sndLevel.setBuffer(bufLevel);
+    sndOver.setBuffer(bufOver);
 
-    zvukPovorotu.setVolume(30.0f);
-    zvukRuhu.setVolume(50.0f);
+    sndRot.setVolume(30.0f);
+    sndMove.setVolume(50.0f);
 
-    yeMuzykaMenu = muzykaMenu.openFromFile("sounds/menu.mp3");
-    if (yeMuzykaMenu) {
-        muzykaMenu.setLoop(true);
-        muzykaMenu.setVolume(20.0f);
+    hasMenuMusic = menuMusic.openFromFile("sounds/menu.mp3");
+    if (hasMenuMusic) {
+        menuMusic.setLoop(true);
+        menuMusic.setVolume(20.0f);
     }
 
-    typNastupnoi = rand() % 7;
-    stvoryty_figuru();
+    nextType = rand() % 7;
+    spawn();
 
-    sf::RectangleShape kubik(sf::Vector2f(ROZMIR_KLITYNKY - 2, ROZMIR_KLITYNKY - 2));
+    sf::RectangleShape block(sf::Vector2f(CELL_SIZE - 2, CELL_SIZE - 2));
     
     // Елементи інтерфейсу
-    sf::RectangleShape tloPolya(sf::Vector2f(KOLONKY * ROZMIR_KLITYNKY, RYADKY * ROZMIR_KLITYNKY));
-    tloPolya.setFillColor(sf::Color::Black);
-    tloPolya.setOutlineThickness(3);
-    tloPolya.setOutlineColor(sf::Color(80, 80, 80));
-    tloPolya.setPosition(40, 30);
+    sf::RectangleShape boardBg(sf::Vector2f(COLS * CELL_SIZE, ROWS * CELL_SIZE));
+    boardBg.setFillColor(sf::Color::Black);
+    boardBg.setOutlineThickness(3);
+    boardBg.setOutlineColor(sf::Color(80, 80, 80));
+    boardBg.setPosition(40, 30);
 
-    sf::RectangleShape tloNastupnoi(sf::Vector2f(160, 160));
-    tloNastupnoi.setFillColor(sf::Color::Black);
-    tloNastupnoi.setOutlineThickness(2);
-    tloNastupnoi.setOutlineColor(sf::Color(80, 80, 80));
-    tloNastupnoi.setPosition(440, 30);
+    sf::RectangleShape previewBg(sf::Vector2f(160, 160));
+    previewBg.setFillColor(sf::Color::Black);
+    previewBg.setOutlineThickness(2);
+    previewBg.setOutlineColor(sf::Color(80, 80, 80));
+    previewBg.setPosition(440, 30);
 
-    sf::RectangleShape knopkaStart(sf::Vector2f(260, 52));
-    knopkaStart.setOutlineThickness(2);
+    sf::RectangleShape btnStart(sf::Vector2f(260, 52));
+    btnStart.setOutlineThickness(2);
 
-    sf::RectangleShape knopkaVihid(sf::Vector2f(260, 52));
-    knopkaVihid.setOutlineThickness(2);
+    sf::RectangleShape btnExit(sf::Vector2f(260, 52));
+    btnExit.setOutlineThickness(2);
 
-    sf::Clock hodynnyk; // Годинник
+    sf::Clock clock; // Годинник
 
     // Головний цикл
-    while (vikno.isOpen()) {
-        float chas = hodynnyk.restart().asSeconds(); // Час кадру
-        if (!pokazatyMenu && !naPauzi && !kinetsHry) {
-            taimer += chas;
+    while (window.isOpen()) {
+        float time = clock.restart().asSeconds(); // Час кадру
+        if (!showMenu && !isPaused && !isGameOver) {
+            timer += time;
         }
 
         // Зміна треків
-        if (!pokazatyMenu && !naPauzi && !kinetsHry) {
-            if (yeMuzykaHry && muzykaHry.getStatus() == sf::SoundSource::Stopped) {
-                potochnyjTrek = (potochnyjTrek + 1) % 3;
-                yeMuzykaHry = muzykaHry.openFromFile(spisokTrekiv[potochnyjTrek]);
-                if (yeMuzykaHry) {
-                    muzykaHry.setLoop(false);
-                    muzykaHry.setVolume(20.0f);
-                    muzykaHry.play();
+        if (!showMenu && !isPaused && !isGameOver) {
+            if (hasMusic && music.getStatus() == sf::SoundSource::Stopped) {
+                currentTrack = (currentTrack + 1) % 3;
+                hasMusic = music.openFromFile(playlist[currentTrack]);
+                if (hasMusic) {
+                    music.setLoop(false);
+                    music.setVolume(20.0f);
+                    music.play();
                 }
             }
         }
 
         // Зчитування подій
-        sf::Event podiya;
-        while (vikno.pollEvent(podiya)) {
-            if (podiya.type == sf::Event::Closed) {
-                vikno.close();
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) {
+                window.close();
             }
 
-            if (podiya.type == sf::Event::KeyPressed) {
+            if (event.type == sf::Event::KeyPressed) {
                 // Керування меню
-                if (pokazatyMenu) {
-                    if (podiya.key.code == sf::Keyboard::Up || podiya.key.code == sf::Keyboard::W || podiya.key.code == sf::Keyboard::Down || podiya.key.code == sf::Keyboard::S) {
-                        vybranyjPunkt = 1 - vybranyjPunkt;
-                        zvukRuhu.play();
+                if (showMenu) {
+                    if (event.key.code == sf::Keyboard::Up || event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Down || event.key.code == sf::Keyboard::S) {
+                        selectedMenu = 1 - selectedMenu;
+                        sndMove.play();
                     }
-                    if (podiya.key.code == sf::Keyboard::Enter) {
-                        if (vybranyjPunkt == 0) ochystyty_gru();
-                        else vikno.close();
+                    if (event.key.code == sf::Keyboard::Enter) {
+                        if (selectedMenu == 0) reset();
+                        else window.close();
                     }
-                    if (podiya.key.code == sf::Keyboard::Escape) {
-                        vikno.close();
+                    if (event.key.code == sf::Keyboard::Escape) {
+                        window.close();
                     }
                 }
                 // Керування грою
                 else {
-                    if (podiya.key.code == sf::Keyboard::P || podiya.key.code == sf::Keyboard::Escape) {
-                        if (!kinetsHry) {
-                            naPauzi = !naPauzi; // Пауза
-                            if (naPauzi) {
-                                if (yeMuzykaHry) muzykaHry.pause();
+                    if (event.key.code == sf::Keyboard::P || event.key.code == sf::Keyboard::Escape) {
+                        if (!isGameOver) {
+                            isPaused = !isPaused; // Пауза
+                            if (isPaused) {
+                                if (hasMusic) music.pause();
                             } else {
-                                if (yeMuzykaHry) muzykaHry.play();
+                                if (hasMusic) music.play();
                             }
                         }
                     }
-                    if (podiya.key.code == sf::Keyboard::R) {
-                        ochystyty_gru(); // Перезапуск
+                    if (event.key.code == sf::Keyboard::R) {
+                        reset(); // Перезапуск
                     }
-                    if ((naPauzi || kinetsHry) && podiya.key.code == sf::Keyboard::M) {
-                        pokazatyMenu = true; // Вихід в меню
-                        naPauzi = false;
-                        kinetsHry = false;
-                        if (yeMuzykaHry) muzykaHry.stop();
+                    if ((isPaused || isGameOver) && event.key.code == sf::Keyboard::M) {
+                        showMenu = true; // Вихід в меню
+                        isPaused = false;
+                        isGameOver = false;
+                        if (hasMusic) music.stop();
                     }
 
-                    if (!naPauzi && !kinetsHry) {
-                        Tochka temp[4];
+                    if (!isPaused && !isGameOver) {
+                        Point temp[4];
                         for (int i = 0; i < 4; i++) {
-                            temp[i] = potochna[i];
+                            temp[i] = current[i];
                         }
 
-                        if (podiya.key.code == sf::Keyboard::Left || podiya.key.code == sf::Keyboard::A) {
+                        if (event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::A) {
                             for (int i = 0; i < 4; i++) temp[i].x--; // Вліво
-                            if (!perevirka_zitknen(temp)) {
-                                for (int i = 0; i < 4; i++) potochna[i] = temp[i];
-                                if (zvukRivnya.getStatus() != sf::SoundSource::Playing) {
-                                    zvukRuhu.play();
+                            if (!check_collision(temp)) {
+                                for (int i = 0; i < 4; i++) current[i] = temp[i];
+                                if (sndLevel.getStatus() != sf::SoundSource::Playing) {
+                                    sndMove.play();
                                 }
                             }
                         }
-                        if (podiya.key.code == sf::Keyboard::Right || podiya.key.code == sf::Keyboard::D) {
+                        if (event.key.code == sf::Keyboard::Right || event.key.code == sf::Keyboard::D) {
                             for (int i = 0; i < 4; i++) temp[i].x++; // Вправо
-                            if (!perevirka_zitknen(temp)) {
-                                for (int i = 0; i < 4; i++) potochna[i] = temp[i];
-                                if (zvukRivnya.getStatus() != sf::SoundSource::Playing) {
-                                    zvukRuhu.play();
+                            if (!check_collision(temp)) {
+                                for (int i = 0; i < 4; i++) current[i] = temp[i];
+                                if (sndLevel.getStatus() != sf::SoundSource::Playing) {
+                                    sndMove.play();
                                 }
                             }
                         }
-                        if (podiya.key.code == sf::Keyboard::Up || podiya.key.code == sf::Keyboard::W) {
-                            if (typPotochnoi != 1) { // Поворот
-                                Tochka centr = temp[1];
+                        if (event.key.code == sf::Keyboard::Up || event.key.code == sf::Keyboard::W) {
+                            if (currentType != 1) { // Поворот
+                                Point center = temp[1];
                                 for (int i = 0; i < 4; i++) {
-                                    int rx = temp[i].y - centr.y;
-                                    int ry = temp[i].x - centr.x;
-                                    temp[i].x = centr.x - rx;
-                                    temp[i].y = centr.y + ry;
+                                    int rx = temp[i].y - center.y;
+                                    int ry = temp[i].x - center.x;
+                                    temp[i].x = center.x - rx;
+                                    temp[i].y = center.y + ry;
                                 }
-                                if (perevirka_zitknen(temp)) {
-                                    int zsuvy[2] = {-1, 1};
-                                    for (int zsuv : zsuvy) {
-                                        Tochka proba[4];
+                                if (check_collision(temp)) {
+                                    int offsets[2] = {-1, 1};
+                                    for (int offset : offsets) {
+                                        Point test[4];
                                         for (int i = 0; i < 4; i++) {
-                                            proba[i].x = temp[i].x + zsuv;
-                                            proba[i].y = temp[i].y;
+                                            test[i].x = temp[i].x + offset;
+                                            test[i].y = temp[i].y;
                                         }
-                                        if (!perevirka_zitknen(proba)) {
-                                            for (int i = 0; i < 4; i++) temp[i] = proba[i];
+                                        if (!check_collision(test)) {
+                                            for (int i = 0; i < 4; i++) temp[i] = test[i];
                                             break;
                                         }
                                     }
                                 }
-                                if (!perevirka_zitknen(temp)) {
-                                    for (int i = 0; i < 4; i++) potochna[i] = temp[i];
-                                    if (zvukRivnya.getStatus() != sf::SoundSource::Playing) {
-                                        zvukPovorotu.play();
+                                if (!check_collision(temp)) {
+                                    for (int i = 0; i < 4; i++) current[i] = temp[i];
+                                    if (sndLevel.getStatus() != sf::SoundSource::Playing) {
+                                        sndRot.play();
                                     }
                                 }
                             }
                         }
-                        if (podiya.key.code == sf::Keyboard::Space) {
+                        if (event.key.code == sf::Keyboard::Space) {
                             while (true) { // Миттєве падіння
                                 for (int i = 0; i < 4; i++) temp[i].y++;
-                                if (perevirka_zitknen(temp)) break;
-                                for (int i = 0; i < 4; i++) potochna[i] = temp[i];
+                                if (check_collision(temp)) break;
+                                for (int i = 0; i < 4; i++) current[i] = temp[i];
                             }
-                            taimer = zatrymka;
+                            timer = delay;
                         }
                     }
                 }
             }
         }
 
-        if (pokazatyMenu) {
-            if (yeMuzykaMenu && muzykaMenu.getStatus() != sf::SoundSource::Playing) {
-                muzykaMenu.play();
+        if (showMenu) {
+            if (hasMenuMusic && menuMusic.getStatus() != sf::SoundSource::Playing) {
+                menuMusic.play();
             }
         }
 
         // Швидкість падіння
-        if (!pokazatyMenu && !naPauzi && !kinetsHry && (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::S))) {
-            zatrymka = 0.05f; // Прискорення
+        if (!showMenu && !isPaused && !isGameOver && (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::S))) {
+            delay = 0.05f; // Прискорення
         } else {
-            if (riven < 9) {
-                zatrymka = 1.0f - riven * 0.09f;
+            if (level < 9) {
+                delay = 1.0f - level * 0.09f;
             } else {
-                float novaZatrymka = 0.15f - (riven - 9) * 0.01f;
-                if (novaZatrymka < 0.05f) zatrymka = 0.05f;
-                else zatrymka = novaZatrymka;
+                float newDelay = 0.15f - (level - 9) * 0.01f;
+                if (newDelay < 0.05f) delay = 0.05f;
+                else delay = newDelay;
             }
         }
 
         // Крок вниз
-        if (!pokazatyMenu && !naPauzi && !kinetsHry && taimer > zatrymka) {
-            Tochka temp[4];
-            for (int i = 0; i < 4; i++) temp[i] = potochna[i];
+        if (!showMenu && !isPaused && !isGameOver && timer > delay) {
+            Point temp[4];
+            for (int i = 0; i < 4; i++) temp[i] = current[i];
             for (int i = 0; i < 4; i++) temp[i].y++;
 
-            if (perevirka_zitknen(temp)) {
+            if (check_collision(temp)) {
                 for (int i = 0; i < 4; i++) {
-                    if (potochna[i].y >= 0) {
-                        sitka[potochna[i].y][potochna[i].x] = typPotochnoi + 1; // Запис у сітку
+                    if (current[i].y >= 0) {
+                        grid[current[i].y][current[i].x] = currentType + 1; // Запис у сітку
                     }
                 }
 
                 // Перевірка ліній
-                int ochyshcheno = 0;
-                for (int y = RYADKY - 1; y >= 0; y--) {
-                    bool povnyj = true;
-                    for (int x = 0; x < KOLONKY; x++) {
-                        if (sitka[y][x] == 0) {
-                            povnyj = false;
+                int cleared = 0;
+                for (int y = ROWS - 1; y >= 0; y--) {
+                    bool full = true;
+                    for (int x = 0; x < COLS; x++) {
+                        if (grid[y][x] == 0) {
+                            full = false;
                             break;
                         }
                     }
-                    if (povnyj) {
-                        ochyshcheno++;
+                    if (full) {
+                        cleared++;
                         for (int dy = y; dy > 0; dy--) {
-                            for (int x = 0; x < KOLONKY; x++) {
-                                sitka[dy][x] = sitka[dy - 1][x];
+                            for (int x = 0; x < COLS; x++) {
+                                grid[dy][x] = grid[dy - 1][x];
                             }
                         }
-                        for (int x = 0; x < KOLONKY; x++) sitka[0][x] = 0;
+                        for (int x = 0; x < COLS; x++) grid[0][x] = 0;
                         y++;
                     }
                 }
 
                 // Нарахування очок
-                if (ochyshcheno > 0) {
-                    linii += ochyshcheno;
-                    int baza = 0;
-                    if (ochyshcheno == 1) baza = 40;
-                    else if (ochyshcheno == 2) baza = 100;
-                    else if (ochyshcheno == 3) baza = 300;
-                    else if (ochyshcheno == 4) baza = 1200;
+                if (cleared > 0) {
+                    lines += cleared;
+                    int base = 0;
+                    if (cleared == 1) base = 40;
+                    else if (cleared == 2) base = 100;
+                    else if (cleared == 3) base = 300;
+                    else if (cleared == 4) base = 1200;
 
-                    rahunok += baza * (riven + 1);
-                    zapysaty_loh("Cleared " + std::to_string(ochyshcheno) + " lines. Score: " + std::to_string(rahunok));
+                    score += base * (level + 1);
+                    log("Cleared " + std::to_string(cleared) + " lines. Score: " + std::to_string(score));
 
-                    int novyjRiven = linii / 5;
-                    if (novyjRiven > riven) {
-                        riven = novyjRiven; // Новий рівень
-                        zapysaty_loh("Level up: " + std::to_string(riven));
-                        zvukOchyshchennya.stop();
-                        zvukRuhu.stop();
-                        zvukPovorotu.stop();
-                        zvukRivnya.play();
+                    int newLevel = lines / 5;
+                    if (newLevel > level) {
+                        level = newLevel; // Новий рівень
+                        log("Level up: " + std::to_string(level));
+                        sndClear.stop();
+                        sndMove.stop();
+                        sndRot.stop();
+                        sndLevel.play();
                     } else {
-                        if (zvukRivnya.getStatus() != sf::SoundSource::Playing) {
-                            zvukOchyshchennya.play();
+                        if (sndLevel.getStatus() != sf::SoundSource::Playing) {
+                            sndClear.play();
                         }
                     }
                 } else {
-                    if (zvukRivnya.getStatus() != sf::SoundSource::Playing) {
-                        zvukRuhu.play();
+                    if (sndLevel.getStatus() != sf::SoundSource::Playing) {
+                        sndMove.play();
                     }
                 }
 
-                stvoryty_figuru();
+                spawn();
             } else {
-                for (int i = 0; i < 4; i++) potochna[i] = temp[i];
+                for (int i = 0; i < 4; i++) current[i] = temp[i];
             }
-            taimer = 0.0f;
+            timer = 0.0f;
         }
 
-        vikno.clear(sf::Color::Black); // Очищення екрану
+        window.clear(sf::Color::Black); // Очищення екрану
 
         // Малювання меню
-        if (pokazatyMenu) {
-            kubik.setFillColor(KOLIORY[3]);
-            kubik.setPosition(100, 480); vikno.draw(kubik);
-            kubik.setPosition(70, 510); vikno.draw(kubik);
-            kubik.setPosition(100, 510); vikno.draw(kubik);
-            kubik.setPosition(130, 510); vikno.draw(kubik);
+        if (showMenu) {
+            block.setFillColor(COLORS[3]);
+            block.setPosition(100, 480); window.draw(block);
+            block.setPosition(70, 510); window.draw(block);
+            block.setPosition(100, 510); window.draw(block);
+            block.setPosition(130, 510); window.draw(block);
 
-            kubik.setFillColor(KOLIORY[7]);
-            kubik.setPosition(580, 100); vikno.draw(kubik);
-            kubik.setPosition(580, 130); vikno.draw(kubik);
-            kubik.setPosition(580, 160); vikno.draw(kubik);
-            kubik.setPosition(610, 160); vikno.draw(kubik);
+            block.setFillColor(COLORS[7]);
+            block.setPosition(580, 100); window.draw(block);
+            block.setPosition(580, 130); window.draw(block);
+            block.setPosition(580, 160); window.draw(block);
+            block.setPosition(610, 160); window.draw(block);
 
-            kubik.setFillColor(KOLIORY[1]);
-            kubik.setPosition(80, 120); vikno.draw(kubik);
-            kubik.setPosition(80, 150); vikno.draw(kubik);
-            kubik.setPosition(80, 180); vikno.draw(kubik);
-            kubik.setPosition(80, 210); vikno.draw(kubik);
+            block.setFillColor(COLORS[1]);
+            block.setPosition(80, 120); window.draw(block);
+            block.setPosition(80, 150); window.draw(block);
+            block.setPosition(80, 180); window.draw(block);
+            block.setPosition(80, 210); window.draw(block);
 
-            std::string litery = "TETRIS";
-            sf::Color koloryLiter[6] = {
-                KOLIORY[5], KOLIORY[7], KOLIORY[2], KOLIORY[4], KOLIORY[1], KOLIORY[3]
+            std::string letters = "TETRIS";
+            sf::Color letterColors[6] = {
+                COLORS[5], COLORS[7], COLORS[2], COLORS[4], COLORS[1], COLORS[3]
             };
 
             for (int i = 0; i < 6; i++) {
-                sf::Text litera(std::string(1, litery[i]), shrift, 70);
-                litera.setFillColor(koloryLiter[i]);
-                litera.setStyle(sf::Text::Bold);
-                litera.setPosition(200 + i * 55, 120);
-                vikno.draw(litera);
+                sf::Text titleLetter(std::string(1, letters[i]), font, 70);
+                titleLetter.setFillColor(letterColors[i]);
+                titleLetter.setStyle(sf::Text::Bold);
+                titleLetter.setPosition(200 + i * 55, 120);
+                window.draw(titleLetter);
             }
 
-            knopkaStart.setPosition(720 / 2.0f - 130, 308);
-            if (vybranyjPunkt == 0) {
-                knopkaStart.setFillColor(sf::Color(0, 188, 212, 50));
-                knopkaStart.setOutlineColor(sf::Color(0, 188, 212));
+            btnStart.setPosition(720 / 2.0f - 130, 308);
+            if (selectedMenu == 0) {
+                btnStart.setFillColor(sf::Color(0, 188, 212, 50));
+                btnStart.setOutlineColor(sf::Color(0, 188, 212));
             } else {
-                knopkaStart.setFillColor(sf::Color(30, 30, 30));
-                knopkaStart.setOutlineColor(sf::Color(70, 70, 70));
+                btnStart.setFillColor(sf::Color(30, 30, 30));
+                btnStart.setOutlineColor(sf::Color(70, 70, 70));
             }
-            vikno.draw(knopkaStart);
+            window.draw(btnStart);
 
-            sf::Text tekstStart("START GAME", shrift, 22);
-            tekstStart.setFillColor(vybranyjPunkt == 0 ? sf::Color::White : sf::Color(100, 100, 100));
-            if (vybranyjPunkt == 0) tekstStart.setStyle(sf::Text::Bold);
-            sf::FloatRect rS = tekstStart.getLocalBounds();
-            tekstStart.setOrigin(rS.left + rS.width / 2.0f, rS.top + rS.height / 2.0f);
-            tekstStart.setPosition(720 / 2.0f, 334);
-            vikno.draw(tekstStart);
+            sf::Text startText("START GAME", font, 22);
+            startText.setFillColor(selectedMenu == 0 ? sf::Color::White : sf::Color(100, 100, 100));
+            if (selectedMenu == 0) startText.setStyle(sf::Text::Bold);
+            sf::FloatRect rS = startText.getLocalBounds();
+            startText.setOrigin(rS.left + rS.width / 2.0f, rS.top + rS.height / 2.0f);
+            startText.setPosition(720 / 2.0f, 334);
+            window.draw(startText);
 
-            knopkaVihid.setPosition(720 / 2.0f - 130, 374);
-            if (vybranyjPunkt == 1) {
-                knopkaVihid.setFillColor(sf::Color(244, 67, 54, 50));
-                knopkaVihid.setOutlineColor(sf::Color(244, 67, 54));
+            btnExit.setPosition(720 / 2.0f - 130, 374);
+            if (selectedMenu == 1) {
+                btnExit.setFillColor(sf::Color(244, 67, 54, 50));
+                btnExit.setOutlineColor(sf::Color(244, 67, 54));
             } else {
-                knopkaVihid.setFillColor(sf::Color(30, 30, 30));
-                knopkaVihid.setOutlineColor(sf::Color(70, 70, 70));
+                btnExit.setFillColor(sf::Color(30, 30, 30));
+                btnExit.setOutlineColor(sf::Color(70, 70, 70));
             }
-            vikno.draw(knopkaVihid);
+            window.draw(btnExit);
 
-            sf::Text tekstVihid("EXIT", shrift, 22);
-            tekstVihid.setFillColor(vybranyjPunkt == 1 ? sf::Color::White : sf::Color(100, 100, 100));
-            if (vybranyjPunkt == 1) tekstVihid.setStyle(sf::Text::Bold);
-            sf::FloatRect rE = tekstVihid.getLocalBounds();
-            tekstVihid.setOrigin(rE.left + rE.width / 2.0f, rE.top + rE.height / 2.0f);
-            tekstVihid.setPosition(720 / 2.0f, 400);
-            vikno.draw(tekstVihid);
+            sf::Text exitText("EXIT", font, 22);
+            exitText.setFillColor(selectedMenu == 1 ? sf::Color::White : sf::Color(100, 100, 100));
+            if (selectedMenu == 1) exitText.setStyle(sf::Text::Bold);
+            sf::FloatRect rE = exitText.getLocalBounds();
+            exitText.setOrigin(rE.left + rE.width / 2.0f, rE.top + rE.height / 2.0f);
+            exitText.setPosition(720 / 2.0f, 400);
+            window.draw(exitText);
 
-            sf::Text pidkazka("W / S or Arrow Keys to Select, Enter to Confirm", shrift, 13);
-            pidkazka.setFillColor(sf::Color(90, 90, 90));
-            sf::FloatRect rI = pidkazka.getLocalBounds();
-            pidkazka.setOrigin(rI.left + rI.width / 2.0f, rI.top + rI.height / 2.0f);
-            pidkazka.setPosition(720 / 2.0f, 540);
-            vikno.draw(pidkazka);
+            sf::Text info("W / S or Arrow Keys to Select, Enter to Confirm", font, 13);
+            info.setFillColor(sf::Color(90, 90, 90));
+            sf::FloatRect rI = info.getLocalBounds();
+            info.setOrigin(rI.left + rI.width / 2.0f, rI.top + rI.height / 2.0f);
+            info.setPosition(720 / 2.0f, 540);
+            window.draw(info);
         }
         // Малювання гри
         else {
-            vikno.draw(tloPolya);
+            window.draw(boardBg);
 
-            for (int y = 0; y < RYADKY; y++) {
-                for (int x = 0; x < KOLONKY; x++) {
-                    if (sitka[y][x] != 0) {
-                        kubik.setFillColor(KOLIORY[sitka[y][x]]);
-                        kubik.setPosition(40 + x * ROZMIR_KLITYNKY + 1, 30 + y * ROZMIR_KLITYNKY + 1);
-                        vikno.draw(kubik);
+            for (int y = 0; y < ROWS; y++) {
+                for (int x = 0; x < COLS; x++) {
+                    if (grid[y][x] != 0) {
+                        block.setFillColor(COLORS[grid[y][x]]);
+                        block.setPosition(40 + x * CELL_SIZE + 1, 30 + y * CELL_SIZE + 1);
+                        window.draw(block);
                     } else {
-                        sf::RectangleShape sitkaKlitka(sf::Vector2f(ROZMIR_KLITYNKY, ROZMIR_KLITYNKY));
-                        sitkaKlitka.setFillColor(sf::Color::Transparent);
-                        sitkaKlitka.setOutlineThickness(0.5f);
-                        sitkaKlitka.setOutlineColor(sf::Color(35, 35, 35));
-                        sitkaKlitka.setPosition(40 + x * ROZMIR_KLITYNKY, 30 + y * ROZMIR_KLITYNKY);
-                        vikno.draw(sitkaKlitka);
+                        sf::RectangleShape line(sf::Vector2f(CELL_SIZE, CELL_SIZE));
+                        line.setFillColor(sf::Color::Transparent);
+                        line.setOutlineThickness(0.5f);
+                        line.setOutlineColor(sf::Color(35, 35, 35));
+                        line.setPosition(40 + x * CELL_SIZE, 30 + y * CELL_SIZE);
+                        window.draw(line);
                     }
                 }
             }
 
-            if (!kinetsHry) {
+            if (!isGameOver) {
                 for (int i = 0; i < 4; i++) {
-                    if (potochna[i].y >= 0) {
-                        kubik.setFillColor(KOLIORY[typPotochnoi + 1]);
-                        kubik.setPosition(40 + potochna[i].x * ROZMIR_KLITYNKY + 1, 30 + potochna[i].y * ROZMIR_KLITYNKY + 1);
-                        vikno.draw(kubik);
+                    if (current[i].y >= 0) {
+                        block.setFillColor(COLORS[currentType + 1]);
+                        block.setPosition(40 + current[i].x * CELL_SIZE + 1, 30 + current[i].y * CELL_SIZE + 1);
+                        window.draw(block);
                     }
                 }
             }
 
-            vikno.draw(tloNastupnoi);
-            sf::Text nastupnaTxt("NEXT", shrift, 20);
-            nastupnaTxt.setFillColor(sf::Color(160, 160, 160));
-            nastupnaTxt.setPosition(440, 5);
-            vikno.draw(nastupnaTxt);
+            window.draw(previewBg);
+            sf::Text nextTxt("NEXT", font, 20);
+            nextTxt.setFillColor(sf::Color(160, 160, 160));
+            nextTxt.setPosition(440, 5);
+            window.draw(nextTxt);
 
             for (int i = 0; i < 4; i++) {
-                kubik.setFillColor(KOLIORY[typNastupnoi + 1]);
-                float px = 440 + 80 + (nastupna[i].x - 1.5f) * ROZMIR_KLITYNKY + 1;
-                float py = 30 + 80 + (nastupna[i].y - 0.5f) * ROZMIR_KLITYNKY + 1;
-                kubik.setPosition(px, py);
-                vikno.draw(kubik);
+                block.setFillColor(COLORS[nextType + 1]);
+                float px = 440 + 80 + (next[i].x - 1.5f) * CELL_SIZE + 1;
+                float py = 30 + 80 + (next[i].y - 0.5f) * CELL_SIZE + 1;
+                block.setPosition(px, py);
+                window.draw(block);
             }
 
-            sf::Text scoreLbl("SCORE", shrift, 18);
+            sf::Text scoreLbl("SCORE", font, 18);
             scoreLbl.setFillColor(sf::Color(130, 130, 130));
             scoreLbl.setPosition(440, 210);
-            vikno.draw(scoreLbl);
+            window.draw(scoreLbl);
 
-            sf::Text scoreVal(std::to_string(rahunok), shrift, 28);
+            sf::Text scoreVal(std::to_string(score), font, 28);
             scoreVal.setFillColor(sf::Color::White);
             scoreVal.setPosition(440, 235);
-            vikno.draw(scoreVal);
+            window.draw(scoreVal);
 
-            sf::Text levelLbl("LEVEL", shrift, 18);
+            sf::Text levelLbl("LEVEL", font, 18);
             levelLbl.setFillColor(sf::Color(130, 130, 130));
             levelLbl.setPosition(440, 290);
-            vikno.draw(levelLbl);
+            window.draw(levelLbl);
 
-            sf::Text levelVal(std::to_string(riven), shrift, 28);
+            sf::Text levelVal(std::to_string(level), font, 28);
             levelVal.setFillColor(sf::Color::White);
             levelVal.setPosition(440, 315);
-            vikno.draw(levelVal);
+            window.draw(levelVal);
 
-            sf::Text linesLbl("LINES", shrift, 18);
+            sf::Text linesLbl("LINES", font, 18);
             linesLbl.setFillColor(sf::Color(130, 130, 130));
             linesLbl.setPosition(440, 370);
-            vikno.draw(linesLbl);
+            window.draw(linesLbl);
 
-            sf::Text linesVal(std::to_string(linii), shrift, 28);
+            sf::Text linesVal(std::to_string(lines), font, 28);
             linesVal.setFillColor(sf::Color::White);
             linesVal.setPosition(440, 395);
-            vikno.draw(linesVal);
+            window.draw(linesVal);
 
-            sf::Text ctrlLbl("CONTROLS", shrift, 14);
+            sf::Text ctrlLbl("CONTROLS", font, 14);
             ctrlLbl.setFillColor(sf::Color(110, 110, 110));
             ctrlLbl.setPosition(440, 470);
-            vikno.draw(ctrlLbl);
+            window.draw(ctrlLbl);
 
-            sf::Text ctrlTxt("A / D / Left / Right - Move\nW / Up - Rotate\nS / Down - Soft Drop\nSpace - Hard Drop\nP / Esc - Pause\nR - Restart", shrift, 12);
+            sf::Text ctrlTxt("A / D / Left / Right - Move\nW / Up - Rotate\nS / Down - Soft Drop\nSpace - Hard Drop\nP / Esc - Pause\nR - Restart", font, 12);
             ctrlTxt.setFillColor(sf::Color(150, 150, 150));
             ctrlTxt.setPosition(440, 495);
-            vikno.draw(ctrlTxt);
+            window.draw(ctrlTxt);
 
             // Пауза
-            if (naPauzi) {
-                sf::RectangleShape overlay(sf::Vector2f(KOLONKY * ROZMIR_KLITYNKY, RYADKY * ROZMIR_KLITYNKY));
+            if (isPaused) {
+                sf::RectangleShape overlay(sf::Vector2f(COLS * CELL_SIZE, ROWS * CELL_SIZE));
                 overlay.setFillColor(sf::Color(0, 0, 0, 200));
                 overlay.setPosition(40, 30);
-                vikno.draw(overlay);
+                window.draw(overlay);
 
-                sf::Text pauseText("PAUSE", shrift, 36);
+                sf::Text pauseText("PAUSE", font, 36);
                 pauseText.setFillColor(sf::Color::White);
                 sf::FloatRect rP = pauseText.getLocalBounds();
                 pauseText.setOrigin(rP.left + rP.width / 2.0f, rP.top + rP.height / 2.0f);
-                pauseText.setPosition(40 + (KOLONKY * ROZMIR_KLITYNKY) / 2.0f, 30 + (RYADKY * ROZMIR_KLITYNKY) / 2.0f - 20);
-                vikno.draw(pauseText);
+                pauseText.setPosition(40 + (COLS * CELL_SIZE) / 2.0f, 30 + (ROWS * CELL_SIZE) / 2.0f - 20);
+                window.draw(pauseText);
 
-                sf::Text menuText("Press 'M' for Menu", shrift, 15);
+                sf::Text menuText("Press 'M' for Menu", font, 15);
                 menuText.setFillColor(sf::Color(200, 200, 200));
                 sf::FloatRect rM = menuText.getLocalBounds();
                 menuText.setOrigin(rM.left + rM.width / 2.0f, rM.top + rM.height / 2.0f);
-                menuText.setPosition(40 + (KOLONKY * ROZMIR_KLITYNKY) / 2.0f, 30 + (RYADKY * ROZMIR_KLITYNKY) / 2.0f + 25);
-                vikno.draw(menuText);
+                menuText.setPosition(40 + (COLS * CELL_SIZE) / 2.0f, 30 + (ROWS * CELL_SIZE) / 2.0f + 25);
+                window.draw(menuText);
             }
 
             // Game Over
-            if (kinetsHry) {
-                sf::RectangleShape overlay(sf::Vector2f(KOLONKY * ROZMIR_KLITYNKY, RYADKY * ROZMIR_KLITYNKY));
+            if (isGameOver) {
+                sf::RectangleShape overlay(sf::Vector2f(COLS * CELL_SIZE, ROWS * CELL_SIZE));
                 overlay.setFillColor(sf::Color(20, 10, 10, 220));
                 overlay.setPosition(40, 30);
-                vikno.draw(overlay);
+                window.draw(overlay);
 
-                sf::Text goText("GAME OVER", shrift, 36);
+                sf::Text goText("GAME OVER", font, 36);
                 goText.setFillColor(sf::Color(244, 67, 54));
                 sf::FloatRect rG = goText.getLocalBounds();
                 goText.setOrigin(rG.left + rG.width / 2.0f, rG.top + rG.height / 2.0f);
-                goText.setPosition(40 + (KOLONKY * ROZMIR_KLITYNKY) / 2.0f, 30 + (RYADKY * ROZMIR_KLITYNKY) / 2.0f - 30);
-                vikno.draw(goText);
+                goText.setPosition(40 + (COLS * CELL_SIZE) / 2.0f, 30 + (ROWS * CELL_SIZE) / 2.0f - 30);
+                window.draw(goText);
 
-                sf::Text rstText("Press 'R' to Restart, 'M' for Menu", shrift, 15);
+                sf::Text rstText("Press 'R' to Restart, 'M' for Menu", font, 15);
                 rstText.setFillColor(sf::Color(200, 200, 200));
                 sf::FloatRect rR = rstText.getLocalBounds();
                 rstText.setOrigin(rR.left + rR.width / 2.0f, rR.top + rR.height / 2.0f);
-                rstText.setPosition(40 + (KOLONKY * ROZMIR_KLITYNKY) / 2.0f, 30 + (RYADKY * ROZMIR_KLITYNKY) / 2.0f + 20);
-                vikno.draw(rstText);
+                rstText.setPosition(40 + (COLS * CELL_SIZE) / 2.0f, 30 + (ROWS * CELL_SIZE) / 2.0f + 20);
+                window.draw(rstText);
             }
         }
 
-        vikno.display(); // Вивід кадру
+        window.display(); // Вивід кадру
     }
 
     return 0;
