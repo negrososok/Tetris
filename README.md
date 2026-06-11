@@ -69,11 +69,18 @@
 
 ## Як скомпілювати проєкт
 
-Для компіляції проєкту на Windows за допомогою компілятора GCC (MinGW) та встановленою бібліотекою SFML використовуйте такі команди в PowerShell:
+Для компіляції проєкту на Windows використовуйте один із наведених нижче способів у терміналі (VS Code, PowerShell або звичайний CMD).
 
+### Варіант 1: Універсальна однорядкова команда (підходить для CMD та PowerShell)
+Замініть `C:/шлях_до_SFML` на ваш реальний шлях до папки з бібліотекою:
+```bash
+g++ -std=c++17 -O2 main.cpp -I"C:/шлях_до_SFML/include" -L"C:/шлях_до_SFML/lib" -lsfml-graphics -lsfml-window -lsfml-system -lsfml-audio -o Tetris.exe
+```
+
+### Варіант 2: Через змінну (тільки для PowerShell)
 ```powershell
 # Вкажіть ваш власний шлях до папки з бібліотекою SFML
-$sfml = "C:/шлях/до/папки/SFML"
+$sfml = "C:/шлях_до_SFML"
 
 # Компіляція програми
 g++ -std=c++17 -O2 main.cpp -I"$sfml/include" -L"$sfml/lib" -lsfml-graphics -lsfml-window -lsfml-system -lsfml-audio -o Tetris.exe
