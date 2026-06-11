@@ -141,7 +141,7 @@ int main() {
     window.setFramerateLimit(60); // Обмеження FPS
 
     sf::Font font; // Шрифт
-    font.loadFromFile("C:\\Windows\\Fonts\\arial.ttf");
+    font.loadFromFile("C:\\Windows\\Fonts\\times.ttf");
 
     // Завантаження звуків
     sf::SoundBuffer bufMove, bufRot, bufClear, bufLevel, bufOver;
@@ -185,10 +185,10 @@ int main() {
     previewBg.setPosition(440, 30);
 
     sf::RectangleShape btnStart(sf::Vector2f(260, 52));
-    btnStart.setOutlineThickness(2);
+    btnStart.setOutlineThickness(1);
 
     sf::RectangleShape btnExit(sf::Vector2f(260, 52));
-    btnExit.setOutlineThickness(2);
+    btnExit.setOutlineThickness(1);
 
     sf::Clock clock; // Годинник
 
@@ -453,16 +453,16 @@ int main() {
 
             btnStart.setPosition(720 / 2.0f - 130, 308);
             if (selectedMenu == 0) {
-                btnStart.setFillColor(sf::Color(0, 188, 212, 50));
-                btnStart.setOutlineColor(sf::Color(0, 188, 212));
+                btnStart.setFillColor(sf::Color(60, 60, 60));
+                btnStart.setOutlineColor(sf::Color::White);
             } else {
-                btnStart.setFillColor(sf::Color(30, 30, 30));
-                btnStart.setOutlineColor(sf::Color(70, 70, 70));
+                btnStart.setFillColor(sf::Color(20, 20, 20));
+                btnStart.setOutlineColor(sf::Color(100, 100, 100));
             }
             window.draw(btnStart);
 
             sf::Text startText("START GAME", font, 22);
-            startText.setFillColor(selectedMenu == 0 ? sf::Color::White : sf::Color(100, 100, 100));
+            startText.setFillColor(selectedMenu == 0 ? sf::Color::White : sf::Color(150, 150, 150));
             if (selectedMenu == 0) startText.setStyle(sf::Text::Bold);
             sf::FloatRect rS = startText.getLocalBounds();
             startText.setOrigin(rS.left + rS.width / 2.0f, rS.top + rS.height / 2.0f);
@@ -471,16 +471,16 @@ int main() {
 
             btnExit.setPosition(720 / 2.0f - 130, 374);
             if (selectedMenu == 1) {
-                btnExit.setFillColor(sf::Color(244, 67, 54, 50));
-                btnExit.setOutlineColor(sf::Color(244, 67, 54));
+                btnExit.setFillColor(sf::Color(60, 60, 60));
+                btnExit.setOutlineColor(sf::Color::White);
             } else {
-                btnExit.setFillColor(sf::Color(30, 30, 30));
-                btnExit.setOutlineColor(sf::Color(70, 70, 70));
+                btnExit.setFillColor(sf::Color(20, 20, 20));
+                btnExit.setOutlineColor(sf::Color(100, 100, 100));
             }
             window.draw(btnExit);
 
             sf::Text exitText("EXIT", font, 22);
-            exitText.setFillColor(selectedMenu == 1 ? sf::Color::White : sf::Color(100, 100, 100));
+            exitText.setFillColor(selectedMenu == 1 ? sf::Color::White : sf::Color(150, 150, 150));
             if (selectedMenu == 1) exitText.setStyle(sf::Text::Bold);
             sf::FloatRect rE = exitText.getLocalBounds();
             exitText.setOrigin(rE.left + rE.width / 2.0f, rE.top + rE.height / 2.0f);
